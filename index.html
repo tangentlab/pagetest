@@ -2,17 +2,14 @@
   <head></head>
   <body>
     <header>
-      <nav>
-        <ul style="list-style: none; display: flex; gap: 20px; padding: 0;">
-          <li><a href="page1.html">Page 1</a></li>
-          <li><a href="page2.html">Page 2</a></li>
-          <li><a href="page3.html">Page 3</a></li>
-          <li><a href="page4.html">Page 4</a></li>
-        </ul>
-      </nav>
+      <h1>WebGL Cube Example</h1>
+      <p>This example demonstrates a rotating colored cube using WebGL.</p>
     </header>
     <main>
-      <canvas id="glcanvas" width="640" height="480" style="border:1px solid #ccc;"></canvas>
+      <div style="position:relative; width:640px; height:480px;">
+        <canvas id="glcanvas" width="640" height="480" style="border:1px solid #ccc; position:absolute; left:0; top:0; z-index:1;"></canvas>
+        <canvas id="particleCanvas" width="640" height="480" style="position:absolute; left:0; top:0; pointer-events:none; z-index:2;"></canvas>
+      </div>
       <script>
         // Vertex shader program
         const vsSource = `
@@ -129,7 +126,40 @@
             indices: indexBuffer,
           };
         }
-        function drawScene(gl, programInfo, buffers, rotation) {
+
+        let drag = false, lastX = 0, lastY = 0, dragRotX = 0, dragRotY = 0;
+        let clickParticle = null;
+        // Particle system
+        const particles = [];
+        function spawnParticles(x, y) {
+          for (let i = 0; i < 20; i++) {
+            particles.push({
+              x: x,
+              y: y,
+              vx: (Math.random()-0.5)*2,
+              vy: (Math.random()-0.5)*2,
+              life: 30 + Math.random()*20
+            });
+          }
+        }
+        function drawParticles(ctx) {
+          ctx.clearRect(0,0,640,480);
+          for (let p of particles) {
+            ctx.globalAlpha = Math.max(0, p.life/50);
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 4, 0, 2*Math.PI);
+            ctx.fillStyle = '#ffcc00';
+            ctx.fill();
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.05;
+            p.life--;
+          }
+          for (let i=particles.length-1; i>=0; i--) {
+            if (particles[i].life <= 0) particles.splice(i,1);
+          }
+        }
+        function drawScene(gl, programInfo, buffers, rotX, rotY) {
           gl.clearColor(0.1, 0.1, 0.1, 1.0);
           gl.clearDepth(1.0);
           gl.enable(gl.DEPTH_TEST);
@@ -143,7 +173,8 @@
           mat4.perspective(projectionMatrix, fieldOfView, aspect, zNear, zFar);
           const modelViewMatrix = mat4.create();
           mat4.translate(modelViewMatrix, modelViewMatrix, [0.0, 0.0, -6.0]);
-          mat4.rotate(modelViewMatrix, modelViewMatrix, rotation, [0, 1, 1]);
+          mat4.rotate(modelViewMatrix, modelViewMatrix, rotX, [1, 0, 0]);
+          mat4.rotate(modelViewMatrix, modelViewMatrix, rotY, [0, 1, 0]);
           {
             const numComponents = 3;
             const type = gl.FLOAT;
@@ -262,6 +293,8 @@
         };
         function main() {
           const canvas = document.getElementById('glcanvas');
+          const particleCanvas = document.getElementById('particleCanvas');
+          const ctx = particleCanvas.getContext('2d');
           const gl = canvas.getContext('webgl');
           if (!gl) {
             alert('WebGL not supported');
@@ -281,12 +314,38 @@
           };
           const buffers = initBuffers(gl);
           let rotation = 0;
+          let rotX = 0, rotY = 0;
           function render(now) {
             rotation = now * 0.001;
-            drawScene(gl, programInfo, buffers, rotation);
+            drawScene(gl, programInfo, buffers, rotation + dragRotX, dragRotY);
+            drawParticles(ctx);
             requestAnimationFrame(render);
           }
           requestAnimationFrame(render);
+          // Mouse drag for cube rotation
+          canvas.addEventListener('mousedown', function(e) {
+            drag = true;
+            lastX = e.clientX;
+            lastY = e.clientY;
+          });
+          window.addEventListener('mousemove', function(e) {
+            if (drag) {
+              dragRotY += (e.clientX - lastX) * 0.01;
+              dragRotX += (e.clientY - lastY) * 0.01;
+              lastX = e.clientX;
+              lastY = e.clientY;
+            }
+          });
+          window.addEventListener('mouseup', function(e) {
+            drag = false;
+          });
+          // Click for particle effect
+          canvas.addEventListener('click', function(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            spawnParticles(x, y);
+          });
         }
         window.onload = main;
       </script>
