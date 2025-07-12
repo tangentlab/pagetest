@@ -2,16 +2,14 @@
   <head></head>
   <body>
     <header>
-      <h1>WebGL Model Viewer</h1>
-      <p>This example demonstrates loading and viewing OBJ models using WebGL.</p>
+      <h1>WebGL Cube Example</h1>
+      <p>This example demonstrates a rotating colored cube using WebGL.</p>
     </header>
     <main>
       <div style="position:relative; width:640px; height:480px;">
         <canvas id="glcanvas" width="640" height="480" style="border:1px solid #ccc; position:absolute; left:0; top:0; z-index:1;"></canvas>
         <canvas id="particleCanvas" width="640" height="480" style="position:absolute; left:0; top:0; pointer-events:none; z-index:2;"></canvas>
-        <input type="file" id="modelInput" accept=".obj" style="position:absolute; left:10px; top:10px; z-index:3;" />
       </div>
-      <script src="https://cdn.jsdelivr.net/npm/webgl-obj-loader@2.0.3/dist/webgl-obj-loader.min.js"></script>
       <script>
         // Vertex shader program
         const vsSource = `
@@ -43,7 +41,6 @@
           }
           return shader;
         }
-        // Initialize a shader program; this is where all the lighting for the vertices and so forth is established.
         function initShaderProgram(gl, vsSource, fsSource) {
           const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vsSource);
           const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fsSource);
@@ -51,26 +48,87 @@
           gl.attachShader(shaderProgram, vertexShader);
           gl.attachShader(shaderProgram, fragmentShader);
           gl.linkProgram(shaderProgram);
-
           if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
             alert('Unable to initialize the shader program: ' + gl.getProgramInfoLog(shaderProgram));
             return null;
           }
           return shaderProgram;
         }
-        let model = null;
-        let modelBuffers = null;
-        document.getElementById('modelInput').addEventListener('change', function(e) {
-          const file = e.target.files[0];
-          if (!file) return;
-          const reader = new FileReader();
-          reader.onload = function(evt) {
-            model = new OBJ.Mesh(evt.target.result);
-            OBJ.initMeshBuffers(gl, model);
-            modelBuffers = model;
+        function initBuffers(gl) {
+          // Cube vertices
+          const positions = [
+            // Front face
+            -1.0, -1.0,  1.0,
+             1.0, -1.0,  1.0,
+             1.0,  1.0,  1.0,
+            -1.0,  1.0,  1.0,
+            // Back face
+            -1.0, -1.0, -1.0,
+            -1.0,  1.0, -1.0,
+             1.0,  1.0, -1.0,
+             1.0, -1.0, -1.0,
+            // Top face
+            -1.0,  1.0, -1.0,
+            -1.0,  1.0,  1.0,
+             1.0,  1.0,  1.0,
+             1.0,  1.0, -1.0,
+            // Bottom face
+            -1.0, -1.0, -1.0,
+             1.0, -1.0, -1.0,
+             1.0, -1.0,  1.0,
+            -1.0, -1.0,  1.0,
+            // Right face
+             1.0, -1.0, -1.0,
+             1.0,  1.0, -1.0,
+             1.0,  1.0,  1.0,
+             1.0, -1.0,  1.0,
+            // Left face
+            -1.0, -1.0, -1.0,
+            -1.0, -1.0,  1.0,
+            -1.0,  1.0,  1.0,
+            -1.0,  1.0, -1.0,
+          ];
+          const positionBuffer = gl.createBuffer();
+          gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+          gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+          // Colors
+          const faceColors = [
+            [1.0,  1.0,  1.0,  1.0],    // Front: white
+            [1.0,  0.0,  0.0,  1.0],    // Back: red
+            [0.0,  1.0,  0.0,  1.0],    // Top: green
+            [0.0,  0.0,  1.0,  1.0],    // Bottom: blue
+            [1.0,  1.0,  0.0,  1.0],    // Right: yellow
+            [1.0,  0.0,  1.0,  1.0],    // Left: purple
+          ];
+          let colors = [];
+          for (let j = 0; j < faceColors.length; ++j) {
+            const c = faceColors[j];
+            colors = colors.concat(c, c, c, c);
+          }
+          const colorBuffer = gl.createBuffer();
+          gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+          gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+          // Indices
+          const indices = [
+            0,  1,  2,      0,  2,  3,    // front
+            4,  5,  6,      4,  6,  7,    // back
+            8,  9, 10,      8, 10, 11,    // top
+           12, 13, 14,     12, 14, 15,    // bottom
+           16, 17, 18,     16, 18, 19,    // right
+           20, 21, 22,     20, 22, 23,    // left
+          ];
+          const indexBuffer = gl.createBuffer();
+          gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+          gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+          return {
+            position: positionBuffer,
+            color: colorBuffer,
+            indices: indexBuffer,
           };
-          reader.readAsText(file);
-        });
+        }
+
+        let drag = false, lastX = 0, lastY = 0, dragRotX = 0, dragRotY = 0;
+        let clickParticle = null;
         // Particle system
         const particles = [];
         function spawnParticles(x, y) {
@@ -117,24 +175,53 @@
           mat4.translate(modelViewMatrix, modelViewMatrix, [0.0, 0.0, -6.0]);
           mat4.rotate(modelViewMatrix, modelViewMatrix, rotX, [1, 0, 0]);
           mat4.rotate(modelViewMatrix, modelViewMatrix, rotY, [0, 1, 0]);
-          if (modelBuffers) {
-            gl.useProgram(programInfo.program);
-            gl.bindBuffer(gl.ARRAY_BUFFER, modelBuffers.vertexBuffer);
-            gl.vertexAttribPointer(programInfo.attribLocations.vertexPosition, 3, gl.FLOAT, false, 0, 0);
+          {
+            const numComponents = 3;
+            const type = gl.FLOAT;
+            const normalize = false;
+            const stride = 0;
+            const offset = 0;
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);
+            gl.vertexAttribPointer(
+              programInfo.attribLocations.vertexPosition,
+              numComponents,
+              type,
+              normalize,
+              stride,
+              offset);
             gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition);
-            if (modelBuffers.colorBuffer) {
-              gl.bindBuffer(gl.ARRAY_BUFFER, modelBuffers.colorBuffer);
-              gl.vertexAttribPointer(programInfo.attribLocations.vertexColor, 4, gl.FLOAT, false, 0, 0);
-              gl.enableVertexAttribArray(programInfo.attribLocations.vertexColor);
-            } else {
-              gl.disableVertexAttribArray(programInfo.attribLocations.vertexColor);
-            }
-            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, modelBuffers.indexBuffer);
-            gl.uniformMatrix4fv(programInfo.uniformLocations.projectionMatrix, false, projectionMatrix);
-            gl.uniformMatrix4fv(programInfo.uniformLocations.modelViewMatrix, false, modelViewMatrix);
-            gl.drawElements(gl.TRIANGLES, modelBuffers.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
-          } else {
-            // Cube rendering code (if needed) can go here
+          }
+          {
+            const numComponents = 4;
+            const type = gl.FLOAT;
+            const normalize = false;
+            const stride = 0;
+            const offset = 0;
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffers.color);
+            gl.vertexAttribPointer(
+              programInfo.attribLocations.vertexColor,
+              numComponents,
+              type,
+              normalize,
+              stride,
+              offset);
+            gl.enableVertexAttribArray(programInfo.attribLocations.vertexColor);
+          }
+          gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.indices);
+          gl.useProgram(programInfo.program);
+          gl.uniformMatrix4fv(
+            programInfo.uniformLocations.projectionMatrix,
+            false,
+            projectionMatrix);
+          gl.uniformMatrix4fv(
+            programInfo.uniformLocations.modelViewMatrix,
+            false,
+            modelViewMatrix);
+          {
+            const vertexCount = 36;
+            const type = gl.UNSIGNED_SHORT;
+            const offset = 0;
+            gl.drawElements(gl.TRIANGLES, vertexCount, type, offset);
           }
         }
         // Matrix utility
@@ -169,7 +256,6 @@
             out[13] = a[13] + v[1];
             out[14] = a[14] + v[2];
           },
-
           rotate: function(out, a, rad, axis) {
             let x = axis[0], y = axis[1], z = axis[2];
             let len = Math.hypot(x, y, z);
@@ -229,7 +315,6 @@
           const buffers = initBuffers(gl);
           let rotation = 0;
           let rotX = 0, rotY = 0;
-
           function render(now) {
             rotation = now * 0.001;
             drawScene(gl, programInfo, buffers, rotation + dragRotX, dragRotY);
