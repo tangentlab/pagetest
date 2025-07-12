@@ -6,9 +6,9 @@
       <p>This example demonstrates a rotating colored cube using WebGL.</p>
     </header>
     <main>
-      <div style="position:relative; width:640px; height:480px;">
-        <canvas id="glcanvas" width="100vw" height="100vh" style="border:1px solid #ccc; position:fixed; left:0; top:0; width:100vw; height:100vh; z-index:1;"></canvas>
-        <canvas id="particleCanvas" width="100vw" height="100vh" style="position:absolute; left:0; top:0; pointer-events:none; z-index:2;"></canvas>
+      <div style="position:relative; width:100vw; height:100vh;">
+        <canvas id="glcanvas" style="border:1px solid #ccc; position:fixed; left:0; top:0; width:100vw; height:100vh; z-index:1;"></canvas>
+        <canvas id="particleCanvas" style="position:absolute; left:0; top:0; width:100vw; height:100vh; pointer-events:none; z-index:2;"></canvas>
       </div>
       <script>
         // Vertex shader program
@@ -143,11 +143,11 @@
           }
         }
         function drawParticles(ctx) {
-          ctx.clearRect(0,0,640,480);
+          // Use actual canvas size for drawing
           for (let p of particles) {
             ctx.globalAlpha = Math.max(0, p.life/50);
             ctx.beginPath();
-            ctx.arc(p.x, p.y, 4, 0, 2*Math.PI);
+            ctx.arc(p.x * window.devicePixelRatio, p.y * window.devicePixelRatio, 4 * window.devicePixelRatio, 0, 2*Math.PI);
             ctx.fillStyle = '#ffcc00';
             ctx.fill();
             p.x += p.vx;
@@ -291,9 +291,24 @@
             out[15] = a[15];
           },
         };
+        function resizeCanvasToDisplaySize(canvas) {
+          const dpr = window.devicePixelRatio || 1;
+          const width = Math.round(window.innerWidth * dpr);
+          const height = Math.round(window.innerHeight * dpr);
+          if (canvas.width !== width || canvas.height !== height) {
+            canvas.width = width;
+            canvas.height = height;
+          }
+        }
         function main() {
           const canvas = document.getElementById('glcanvas');
           const particleCanvas = document.getElementById('particleCanvas');
+          resizeCanvasToDisplaySize(canvas);
+          resizeCanvasToDisplaySize(particleCanvas);
+          canvas.style.width = '100vw';
+          canvas.style.height = '100vh';
+          particleCanvas.style.width = '100vw';
+          particleCanvas.style.height = '100vh';
           const ctx = particleCanvas.getContext('2d');
           const gl = canvas.getContext('webgl');
           if (!gl) {
@@ -316,6 +331,11 @@
           let rotation = 0;
           let rotX = 0, rotY = 0;
           function render(now) {
+            resizeCanvasToDisplaySize(canvas);
+            resizeCanvasToDisplaySize(particleCanvas);
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
             rotation = now * 0.001;
             drawScene(gl, programInfo, buffers, rotation + dragRotX, dragRotY);
             drawParticles(ctx);
@@ -342,8 +362,8 @@
           // Click for particle effect
           canvas.addEventListener('click', function(e) {
             const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            const x = (e.clientX - rect.left);
+            const y = (e.clientY - rect.top);
             spawnParticles(x, y);
           });
         }
