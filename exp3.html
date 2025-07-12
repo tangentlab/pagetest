@@ -116,7 +116,7 @@ function updateParticles() {
         vx += dx * FOLLOW_STRENGTH * Math.random();
         vy += dy * FOLLOW_STRENGTH * Math.random();
 
-        // Swarming: simple separation
+        // Swarming: separation and repulsion at specific distance
         for (let j = 0; j < NUM_PARTICLES; j++) {
             if (i === j) continue;
             let ox = particlePositions[j*2];
@@ -124,9 +124,11 @@ function updateParticles() {
             let ddx = px - ox;
             let ddy = py - oy;
             let dist = Math.sqrt(ddx*ddx + ddy*ddy);
-            if (dist < 20 && dist > 0) {
-                vx += ddx / dist * 0.2;
-                vy += ddy / dist * 0.2;
+            // Repulsion if within repulsion distance
+            if (dist < 40 && dist > 0) {
+                let repulseStrength = 0.8 * (1.0 - dist/40.0); // Stronger when closer
+                vx += ddx / dist * repulseStrength;
+                vy += ddy / dist * repulseStrength;
             }
         }
 
