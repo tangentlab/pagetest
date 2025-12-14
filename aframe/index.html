@@ -24,19 +24,63 @@
       .back-button:hover {
         background: rgba(0, 0, 0, 0.9);
       }
+      .game-ui {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        font-family: Arial, sans-serif;
+        backdrop-filter: blur(10px);
+        min-width: 200px;
+      }
+      .game-ui h3 {
+        margin: 0 0 10px 0;
+        font-size: 1.2em;
+      }
+      .game-ui p {
+        margin: 5px 0;
+        font-size: 0.9em;
+      }
+      .network-line {
+        opacity: 0.6;
+      }
     </style>
   </head>
   <body>
     <a href="../" class="back-button">Back to Home</a>
+    <div class="game-ui">
+      <h3>🌐 Network Game</h3>
+      <p><strong>Connections:</strong> <span id="connection-count">0</span></p>
+      <p><strong>Nodes:</strong> <span id="node-count">0</span></p>
+      <p><strong>Click objects</strong> to transform and create connections!</p>
+    </div>
     <a-scene>
-      <a-box id="box1" position="-1 0.5 -3" rotation="0 45 0" color="#4CC3D9" class="clickable"></a-box>
-      <a-sphere id="sphere1" position="0 1.25 -5" radius="1.25" color="#EF2D5E" class="clickable"></a-sphere>
-      <a-cylinder id="cylinder1" position="1 0.75 -3" radius="0.5" height="1.5" color="#FFC65D" class="clickable"></a-cylinder>
-      <a-plane id="plane1" position="0 0 -4" rotation="-90 0 0" width="4" height="4" color="#7BC8A4" class="clickable"></a-plane>
-      <a-sky color="#ECECEC"></a-sky>
+      <!-- Initial objects scattered in space -->
+      <a-box id="obj-1" position="-2 1 -3" rotation="0 45 0" color="#4CC3D9" class="clickable network-node"></a-box>
+      <a-sphere id="obj-2" position="2 1.5 -4" radius="0.5" color="#EF2D5E" class="clickable network-node"></a-sphere>
+      <a-cylinder id="obj-3" position="0 2 -5" radius="0.4" height="1" color="#FFC65D" class="clickable network-node"></a-cylinder>
+      <a-box id="obj-4" position="-1.5 0.5 -2" rotation="30 0 45" color="#7BC8A4" class="clickable network-node"></a-box>
+      <a-sphere id="obj-5" position="1.5 0.8 -3.5" radius="0.5" color="#9B59B6" class="clickable network-node"></a-sphere>
+      <a-cylinder id="obj-6" position="-2.5 1.2 -4.5" radius="0.4" height="1" color="#E74C3C" class="clickable network-node"></a-cylinder>
+      <a-box id="obj-7" position="2.2 0.3 -2.5" rotation="0 60 0" color="#3498DB" class="clickable network-node"></a-box>
+      <a-sphere id="obj-8" position="0 1.8 -6" radius="0.5" color="#F39C12" class="clickable network-node"></a-sphere>
+
+      <!-- Ground plane -->
+      <a-plane position="0 0 -4" rotation="-90 0 0" width="10" height="10" color="#2c3e50" opacity="0.3"></a-plane>
+      <a-sky color="#1a1a2e"></a-sky>
+
+      <!-- Lighting -->
+      <a-light type="ambient" color="#ffffff" intensity="0.4"></a-light>
+      <a-light type="directional" position="5 10 5" intensity="0.8"></a-light>
+      <a-light type="point" position="-5 5 -5" color="#4a90e2" intensity="0.6"></a-light>
+      <a-light type="point" position="5 5 -5" color="#e24a90" intensity="0.6"></a-light>
 
       <!-- Camera -->
-      <a-camera></a-camera>
+      <a-camera id="main-camera" position="0 2 5" look-controls wasd-controls="enabled: true"></a-camera>
     </a-scene>
 
     <script>
@@ -54,6 +98,107 @@
 
       // Colors to cycle through
       const colors = ['#4CC3D9', '#EF2D5E', '#FFC65D', '#7BC8A4', '#9B59B6', '#E74C3C', '#3498DB', '#F39C12'];
+
+      // Network tracking
+      const network = {
+        nodes: new Map(), // id -> {element, position, connections: Set}
+        connections: new Set(), // Set of connection IDs like "id1-id2"
+        connectionDistance: 3.5 // Maximum distance for connections
+      };
+
+      // Update UI
+      function updateUI() {
+        document.getElementById('connection-count').textContent = network.connections.size;
+        document.getElementById('node-count').textContent = network.nodes.size;
+      }
+
+      // Calculate distance between two positions
+      function getDistance(pos1, pos2) {
+        const dx = pos1.x - pos2.x;
+        const dy = pos1.y - pos2.y;
+        const dz = pos1.z - pos2.z;
+        return Math.sqrt(dx*dx + dy*dy + dz*dz);
+      }
+
+      // Create connection line between two objects
+      function createConnection(id1, id2, pos1, pos2) {
+        const connectionId = [id1, id2].sort().join('-');
+
+        // Check if connection already exists
+        if (network.connections.has(connectionId)) {
+          return;
+        }
+
+        network.connections.add(connectionId);
+
+        // Calculate distance and direction
+        const distance = getDistance(pos1, pos2);
+        const dx = pos2.x - pos1.x;
+        const dy = pos2.y - pos1.y;
+        const dz = pos2.z - pos1.z;
+
+        // Calculate midpoint
+        const midX = (pos1.x + pos2.x) / 2;
+        const midY = (pos1.y + pos2.y) / 2;
+        const midZ = (pos1.z + pos2.z) / 2;
+
+        // Create line entity using a-cylinder
+        const lineId = 'line-' + connectionId;
+        const line = document.createElement('a-cylinder');
+        line.setAttribute('id', lineId);
+        line.setAttribute('radius', '0.03');
+        line.setAttribute('height', distance);
+        line.setAttribute('color', '#00ff88');
+        line.setAttribute('opacity', '0.6');
+        line.setAttribute('position', midX + ' ' + midY + ' ' + midZ);
+
+        // Calculate rotation to align cylinder from pos1 to pos2
+        // First, find the angle in the XZ plane (yaw)
+        const yaw = Math.atan2(dx, dz) * 180 / Math.PI;
+        // Then, find the pitch angle (elevation)
+        const pitch = Math.atan2(-dy, Math.sqrt(dx*dx + dz*dz)) * 180 / Math.PI;
+
+        line.setAttribute('rotation', pitch + ' ' + yaw + ' 0');
+        line.setAttribute('class', 'network-line');
+
+        document.querySelector('a-scene').appendChild(line);
+        updateUI();
+      }
+
+      // Update connections for a node
+      function updateConnections(nodeId, position) {
+        network.nodes.forEach((node, otherId) => {
+          if (otherId !== nodeId && node.position) {
+            const distance = getDistance(position, node.position);
+            if (distance <= network.connectionDistance) {
+              createConnection(nodeId, otherId, position, node.position);
+            }
+          }
+        });
+      }
+
+      // Register a node in the network
+      function registerNode(element) {
+        const id = element.getAttribute('id');
+        const pos = element.getAttribute('position');
+        const position = typeof pos === 'object' ? pos : {x: 0, y: 0, z: 0};
+
+        if (!network.nodes.has(id)) {
+          network.nodes.set(id, {
+            element: element,
+            position: position,
+            connections: new Set()
+          });
+        } else {
+          // Update position
+          network.nodes.get(id).position = position;
+          network.nodes.get(id).element = element;
+        }
+
+        // Update connections
+        updateConnections(id, position);
+        updateUI();
+      }
 
       function transformObject(element) {
         // Get current object type
@@ -120,16 +265,26 @@
         // Replace the element
         element.parentNode.replaceChild(newElement, element);
 
+        // Register in network and create connections
+        registerNode(newElement);
+
         // Add click listener to new element
         newElement.addEventListener('click', function() {
           transformObject(this);
         });
       }
 
+      // Initialize network with existing nodes
+      function initializeNetwork() {
+        document.querySelectorAll('.network-node').forEach(function(element) {
+          registerNode(element);
+        });
+      }
+
       // Mouse click handler with raycasting
       document.querySelector('a-scene').addEventListener('loaded', function() {
         const sceneEl = document.querySelector('a-scene');
-        const cameraEl = document.querySelector('a-camera');
+        const cameraEl = document.querySelector('#main-camera') || document.querySelector('a-camera');
 
         // Get Three.js - A-Frame bundles THREE.js
         // THREE should be available globally or through AFRAME
@@ -194,6 +349,9 @@
             }
           }
         });
+
+        // Initialize network
+        initializeNetwork();
       });
     </script>
   </body>
