@@ -1,0 +1,119 @@
+<html>
+  <head>
+    <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      .back-button {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        z-index: 1000;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-family: Arial, sans-serif;
+        font-size: 14px;
+        backdrop-filter: blur(10px);
+        transition: background 0.2s;
+      }
+      .back-button:hover {
+        background: rgba(0, 0, 0, 0.9);
+      }
+    </style>
+  </head>
+  <body>
+    <a href="../" class="back-button">Back to Home</a>
+    <a-scene>
+      <a-box id="box1" position="-1 0.5 -3" rotation="0 45 0" color="#4CC3D9" class="clickable"></a-box>
+      <a-sphere id="sphere1" position="0 1.25 -5" radius="1.25" color="#EF2D5E" class="clickable"></a-sphere>
+      <a-cylinder id="cylinder1" position="1 0.75 -3" radius="0.5" height="1.5" color="#FFC65D" class="clickable"></a-cylinder>
+      <a-plane position="0 0 -4" rotation="-90 0 0" width="4" height="4" color="#7BC8A4"></a-plane>
+      <a-sky color="#ECECEC"></a-sky>
+
+      <!-- Camera with cursor for interaction -->
+      <a-camera>
+        <a-cursor
+          id="cursor"
+          raycaster="objects: .clickable"
+          geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
+          material="color: #4CC3D9; shader: flat"
+          animation__click="property: scale; startEvents: click; from: 0.8 0.8 0.8; to: 1 1 1; dur: 150"
+          animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.8 0.8 0.8; dur: 1500"
+          animation__mouseleave="property: scale; startEvents: mouseleave; from: 1.2 1.2 1.2; to: 1 1 1; dur: 150"
+          animation__mouseenter="property: scale; startEvents: mouseenter; from: 1 1 1; to: 1.2 1.2 1.2; dur: 150">
+        </a-cursor>
+      </a-camera>
+    </a-scene>
+
+    <script>
+      // Define object types to cycle through
+      const objectTypes = [
+        { type: 'box', tag: 'a-box', props: 'width="1" height="1" depth="1"' },
+        { type: 'sphere', tag: 'a-sphere', props: 'radius="0.5"' },
+        { type: 'cylinder', tag: 'a-cylinder', props: 'radius="0.5" height="1"' },
+        { type: 'torus', tag: 'a-torus', props: 'radius="0.5" radius-tubular="0.1"' },
+        { type: 'octahedron', tag: 'a-octahedron', props: 'radius="0.5"' },
+        { type: 'tetrahedron', tag: 'a-tetrahedron', props: 'radius="0.5"' },
+        { type: 'cone', tag: 'a-cone', props: 'radius-bottom="0.5" radius-top="0.1" height="1"' },
+        { type: 'dodecahedron', tag: 'a-dodecahedron', props: 'radius="0.5"' }
+      ];
+
+      // Colors to cycle through
+      const colors = ['#4CC3D9', '#EF2D5E', '#FFC65D', '#7BC8A4', '#9B59B6', '#E74C3C', '#3498DB', '#F39C12'];
+
+      function transformObject(element) {
+        // Get current object type
+        const currentTag = element.tagName.toLowerCase();
+        const currentType = objectTypes.findIndex(obj => obj.tag === currentTag);
+
+        // Get next object type (cycle through)
+        const nextIndex = (currentType + 1) % objectTypes.length;
+        const nextObject = objectTypes[nextIndex];
+
+        // Get current attributes
+        const position = element.getAttribute('position');
+        const rotation = element.getAttribute('rotation') || { x: 0, y: 0, z: 0 };
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const id = element.getAttribute('id');
+
+        // Create new element
+        const newElement = document.createElement(nextObject.tag);
+        newElement.setAttribute('id', id);
+        newElement.setAttribute('position', position);
+        newElement.setAttribute('rotation', rotation);
+        newElement.setAttribute('color', color);
+        newElement.setAttribute('class', 'clickable');
+
+        // Add animation for smooth transition
+        newElement.setAttribute('animation__scale', {
+          property: 'scale',
+          from: '0 0 0',
+          to: '1 1 1',
+          dur: 300,
+          easing: 'easeOutElastic'
+        });
+
+        // Replace the element
+        element.parentNode.replaceChild(newElement, element);
+
+        // Add click listener to new element
+        newElement.addEventListener('click', function() {
+          transformObject(this);
+        });
+      }
+
+      // Add click listeners to all clickable objects
+      document.querySelectorAll('.clickable').forEach(function(element) {
+        element.addEventListener('click', function() {
+          transformObject(this);
+        });
+      });
+    </script>
+  </body>
+</html>
+
