@@ -63,29 +63,15 @@ All `.md` files must include:
 
 ### Project Structure
 
-**Current Site Structure:**
-
 ```
-/pagetest/
-├── index.html (Main landing page)
-├── exp1_cube.html (WebGL Cube Demo)
-├── exp2.html (3D Text Demo)
-├── exp3.html (Swarming Particles Demo)
-├── aframe/
-│   └── index.html (A-Frame VR Demo - Interactive 3D objects)
-├── audio_review/
-│   └── index.html (Audio Review Tool)
-├── exp1/ (Contains index.html - WebGL Cube)
-├── exp2/ (Contains index.html - 3D Text)
-├── exp3/ (Contains index.html - Swarming Particles)
-├── exp4/ (Contains index.html - React Three Fiber Hotspots)
-├── exp5/ (Contains index.html - iFrame Demo)
-└── docs/
-    ├── summary.md (Master reference)
-    └── reference-rules.md (This file)
+/docs/
+  ├── summary.md (Master reference)
+  ├── reference-rules.md (This file)
+  ├── phase-1-checklist.md (Foundation & Branding)
+  ├── phase-2-checklist.md (Content & Context)
+  ├── phase-3-checklist.md (Technical Improvements)
+  └── phase-4-checklist.md (Advanced Features)
 ```
-
-**Note:** The site currently has both root-level HTML files and organized folder structures. The main index.html links to root-level files, while folder structures exist for better organization.
 
 ## Reference Categories
 
@@ -138,52 +124,14 @@ When making design updates, reference:
 
 ## Status Tracking
 
-### Current Website Status (Updated)
+### Current Website Status
 
-**Project Structure:**
+Reference the summary's current state analysis:
 
-```
-/pagetest/
-├── index.html (Main landing page)
-├── exp1_cube.html (WebGL Cube Demo - root level)
-├── exp2.html (3D Text Demo - root level)
-├── exp3.html (3D Model Demo - root level)
-├── aframe/
-│   └── index.html (A-Frame VR Demo with clickable objects)
-├── audio_review/
-│   └── index.html (Audio Review Tool)
-└── docs/
-    ├── reference-rules.md (This file)
-    └── summary.md (Master reference)
-```
-
-**Current Pages:**
-
-1. **Main Landing Page** (`index.html`)
-
-   - Simple welcome page with links to experiments
-   - Links to: Cube Demo, 3D Text Demo, 3D Model Demo
-   - Status: Basic functionality, needs enhancement per summary recommendations
-
-2. **WebGL Experiments**
-
-   - `exp1_cube.html`: Rotating colored cube with particle effects on click
-   - `exp2.html`: Three.js 3D text animation ("Ryan Hill")
-   - `exp3.html`: Swarming particles WebGL demo with mouse interaction
-   - Status: Functional demos, need context and professional presentation
-
-3. **A-Frame VR Demo** (`aframe/index.html`)
-
-   - Interactive 3D scene with clickable objects
-   - Objects transform into different shapes when clicked (cycles through 8 shapes)
-   - Features: Cursor interaction, smooth animations, color changes
-   - Back button to return to home page
-   - Status: Fully functional, showcases VR/3D interaction skills
-
-4. **Audio Review Tool** (`audio_review/index.html`)
-   - Status: Exists but needs integration with main site
-
-**Note:** There are also experiment folders (exp1/, exp2/, exp3/, exp4/, exp5/) that may contain additional versions of experiments, but the main index currently links to root-level HTML files.
+- Main Landing Page: ⚠️ Needs improvement
+- WebGL Experiments: ⚠️ Need context
+- Audio Review Tool: ⚠️ Need integration
+- Documentation: ⚠️ Needs expansion
 
 ### Progress Tracking
 
@@ -193,69 +141,6 @@ Track improvements against summary recommendations:
 - [ ] Phase 2: Content & Context
 - [ ] Phase 3: Technical Improvements
 - [ ] Phase 4: Advanced Features
-
-## Current Site Features
-
-### Active Experiments
-
-1. **WebGL Cube Demo** (`exp1_cube.html`)
-
-   - Rotating colored cube with WebGL
-   - Particle effects on click
-   - Mouse drag rotation controls
-
-2. **3D Text Demo** (`exp2.html`)
-
-   - Three.js text geometry
-   - Rotating "Ryan Hill" text
-   - Phong material with lighting
-
-3. **Swarming Particles** (`exp3.html`)
-
-   - WebGL particle system
-   - Mouse-following behavior
-   - Swarming/repulsion physics
-
-4. **A-Frame VR Demo** (`aframe/index.html`)
-   - Interactive 3D scene
-   - Clickable objects that transform into different shapes
-   - 8 shape types: box, sphere, cylinder, torus, octahedron, tetrahedron, cone, dodecahedron
-   - Color cycling on transformation
-   - Smooth elastic animations
-   - VR headset compatible
-   - Back navigation to home
-
-### Technical Stack
-
-- **WebGL**: Direct WebGL rendering for particles and cube
-- **Three.js**: 3D graphics library for text demo
-- **A-Frame**: VR framework for immersive 3D experiences
-- **Vanilla JavaScript**: No frameworks for core functionality
-
-### A-Frame Demo Details
-
-**Location**: `/aframe/index.html`
-
-**Features**:
-
-- Interactive 3D scene with multiple primitive shapes
-- Click-to-transform functionality: Objects cycle through 8 different shapes
-- Dynamic color changes on each transformation
-- Smooth elastic scale animations
-- Raycasting cursor for object interaction
-- VR mode support (works with VR headsets)
-- Navigation: Back button to return to home page
-
-**Object Transformation Cycle**:
-
-1. Box → 2. Sphere → 3. Cylinder → 4. Torus → 5. Octahedron → 6. Tetrahedron → 7. Cone → 8. Dodecahedron → (repeats)
-
-**Implementation Notes**:
-
-- Uses A-Frame 1.7.1
-- Custom JavaScript for object transformation logic
-- Event-driven architecture for click handling
-- Maintains position and rotation during transformations
 
 ## Quick Reference Links
 
