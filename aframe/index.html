@@ -1,54 +1,8 @@
 <html>
   <head>
+    <link rel="stylesheet" href="style.css">
     <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
-    <style>
-      body {
-        margin: 0;
-        padding: 0;
-      }
-      .back-button {
-        position: absolute;
-        top: 20px;
-        left: 20px;
-        z-index: 1000;
-        background: rgba(0, 0, 0, 0.7);
-        color: white;
-        padding: 12px 20px;
-        border-radius: 8px;
-        text-decoration: none;
-        font-family: Arial, sans-serif;
-        font-size: 14px;
-        backdrop-filter: blur(10px);
-        transition: background 0.2s;
-      }
-      .back-button:hover {
-        background: rgba(0, 0, 0, 0.9);
-      }
-      .game-ui {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        z-index: 1000;
-        background: rgba(0, 0, 0, 0.7);
-        color: white;
-        padding: 20px;
-        border-radius: 10px;
-        font-family: Arial, sans-serif;
-        backdrop-filter: blur(10px);
-        min-width: 200px;
-      }
-      .game-ui h3 {
-        margin: 0 0 10px 0;
-        font-size: 1.2em;
-      }
-      .game-ui p {
-        margin: 5px 0;
-        font-size: 0.9em;
-      }
-      .network-line {
-        opacity: 0.6;
-      }
-    </style>
+    <script src="https://unpkg.com/@c-frame/aframe-physics-system@4.2.3/dist/aframe-physics-system.min.js"></script>
   </head>
   <body>
     <a href="../" class="back-button">Back to Home</a>
@@ -56,9 +10,12 @@
       <h3>Network Game</h3>
       <p><strong>Connections:</strong> <span id="connection-count">0</span></p>
       <p><strong>Nodes:</strong> <span id="node-count">0</span></p>
-      <p><strong>Click objects</strong> to transform and create connections!</p>
+      <p><strong>Click objects</strong> to transform and activate physics!</p>
+      <p><strong>Objects will fall and bounce!</strong></p>
     </div>
-    <a-scene>
+    <a-scene
+      physics="enabled: true; debug: false; maxSubSteps: 1; fixedTimeStep: 1/60"
+      renderer="antialias: true; colorManagement: true; sortObjects: true">
       <!-- Initial objects scattered in space -->
       <a-box id="obj-1" position="-2 1 -3" rotation="0 45 0" color="#4CC3D9" class="clickable network-node"></a-box>
       <a-sphere id="obj-2" position="2 1.5 -4" radius="0.5" color="#EF2D5E" class="clickable network-node"></a-sphere>
@@ -69,15 +26,22 @@
       <a-box id="obj-7" position="2.2 0.3 -2.5" rotation="0 60 0" color="#3498DB" class="clickable network-node"></a-box>
       <a-sphere id="obj-8" position="0 1.8 -6" radius="0.5" color="#F39C12" class="clickable network-node"></a-sphere>
 
-      <!-- Ground plane -->
-      <a-plane position="0 0 -4" rotation="-90 0 0" width="10" height="10" color="#2c3e50" opacity="0.3"></a-plane>
+      <!-- Ground plane with physics -->
+      <a-plane
+        position="0 0 -4"
+        rotation="-90 0 0"
+        width="10"
+        height="10"
+        color="#2c3e50"
+        opacity="0.3"
+        static-body
+        shape="box">
+      </a-plane>
       <a-sky color="#1a1a2e"></a-sky>
 
-      <!-- Lighting -->
-      <a-light type="ambient" color="#ffffff" intensity="0.4"></a-light>
-      <a-light type="directional" position="5 10 5" intensity="0.8"></a-light>
-      <a-light type="point" position="-5 5 -5" color="#4a90e2" intensity="0.6"></a-light>
-      <a-light type="point" position="5 5 -5" color="#e24a90" intensity="0.6"></a-light>
+      <!-- Lighting - optimized for performance -->
+      <a-light type="ambient" color="#ffffff" intensity="0.5"></a-light>
+      <a-light type="directional" position="5 10 5" intensity="0.7" cast-shadow="false"></a-light>
 
       <!-- Camera -->
       <a-camera id="main-camera" position="0 2 5" look-controls wasd-controls="enabled: true"></a-camera>
@@ -167,16 +131,23 @@
         updateUI();
       }
 
-      // Update connections for a node
+      // Update connections for a node (throttled for performance)
+      let connectionUpdateTimeout = null;
       function updateConnections(nodeId, position) {
-        network.nodes.forEach((node, otherId) => {
-          if (otherId !== nodeId && node.position) {
-            const distance = getDistance(position, node.position);
-            if (distance <= network.connectionDistance) {
-              //createConnection(nodeId, otherId, position, node.position);
+        // Throttle connection updates to avoid performance issues
+        if (connectionUpdateTimeout) {
+          clearTimeout(connectionUpdateTimeout);
+        }
+        connectionUpdateTimeout = setTimeout(function() {
+          network.nodes.forEach((node, otherId) => {
+            if (otherId !== nodeId && node.position) {
+              const distance = getDistance(position, node.position);
+              if (distance <= network.connectionDistance) {
+                //createConnection(nodeId, otherId, position, node.position);
+              }
             }
-          }
-        });
+          });
+        }, 100); // Only update connections every 100ms
       }
 
       // Register a node in the network
@@ -255,20 +226,63 @@
           newElement.setAttribute('height', '1');
         }
 
-        // Add animation for smooth transition
+        // Add animation for smooth transition (simplified for performance)
         newElement.setAttribute('animation__scale', {
           property: 'scale',
-          from: '0 0 0',
+          from: '0.5 0.5 0.5',
           to: '1 1 1',
-          dur: 300,
-          easing: 'easeOutElastic'
+          dur: 200,
+          easing: 'easeOutQuad'
         });
 
         // Replace the element
         element.parentNode.replaceChild(newElement, element);
 
-        // Register in network and create connections
-        registerNode(newElement);
+        // Enable physics on the new object - make it dynamic so it falls and bounces
+        // Wait for element to be attached to scene
+        setTimeout(function() {
+          // Set physics body based on object type
+          let shape = 'box';
+          if (nextObject.tag === 'a-sphere') {
+            shape = 'sphere';
+          } else if (nextObject.tag === 'a-cylinder' || nextObject.tag === 'a-cone') {
+            shape = 'cylinder';
+          } else if (nextObject.tag === 'a-torus') {
+            shape = 'hull';
+          } else {
+            shape = 'box';
+          }
+
+          // Enable physics with bounce - optimized settings
+          const physicsConfig = {
+            shape: shape,
+            mass: 1,
+            restitution: 0.6, // Reduced bounciness for better performance
+            friction: 0.4,
+            linearDamping: 0.2, // Increased damping to reduce calculations
+            angularDamping: 0.2,
+            type: 'dynamic',
+            // Performance optimizations
+            emitCollisionEvents: false // Disable collision events for better performance
+          };
+          newElement.setAttribute('dynamic-body', physicsConfig);
+
+          // Give it a small random velocity to make it more interesting
+          // Use requestAnimationFrame for better timing
+          requestAnimationFrame(function() {
+            setTimeout(function() {
+              const body = newElement.body;
+              if (body && body.velocity) {
+                const randomX = (Math.random() - 0.5) * 0.3;
+                const randomZ = (Math.random() - 0.5) * 0.3;
+                body.velocity.set(randomX, 0, randomZ);
+              }
+            }, 100);
+          });
+        }, 50);
+
+        // Register in network (skip connection updates for performance)
+        // registerNode(newElement); // Disabled to improve physics performance
 
         // Add click listener to new element
         newElement.addEventListener('click', function() {
@@ -276,11 +290,12 @@
         });
       }
 
-      // Initialize network with existing nodes
+      // Initialize network with existing nodes (disabled for performance)
       function initializeNetwork() {
-        document.querySelectorAll('.network-node').forEach(function(element) {
-          registerNode(element);
-        });
+        // Disabled to improve physics performance
+        // document.querySelectorAll('.network-node').forEach(function(element) {
+        //   registerNode(element);
+        // });
       }
 
       // Mouse click handler with raycasting
