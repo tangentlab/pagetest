@@ -6,17 +6,17 @@
   </head>
   <body>
     <a href="../" class="back-button">Back to Home</a>
-    <!-- <div class="game-ui">
+    <div class="game-ui">
       <h3>Network Game</h3>
       <p><strong>Connections:</strong> <span id="connection-count">0</span></p>
       <p><strong>Nodes:</strong> <span id="node-count">0</span></p>
       <p><strong>Click objects</strong> to transform and create connections!</p>
-    </div> -->
+    </div>
 
     <a-scene>
       <a-assets>
-        <a-asset-item id="head" src="media/3D_Ryan_Head_clean.glb"></a-asset-item>
-        <a-asset-item id="body" src="media/ryan_nontext.glb"></a-asset-item>
+        <a-asset-item id="head" src="../media/3D_Ryan_Head_clean.glb"></a-asset-item>
+        <a-asset-item id="body" src="../media/ryan_nontext.glb"></a-asset-item>
       </a-assets>
 
       <!-- Initial objects scattered in space -->
@@ -33,8 +33,8 @@
       <a-entity gltf-model="#body" position="0 1 -3" scale="2 2 2" rotation="0 0 0" ></a-entity>
 
       <!-- Ground plane -->
-      <a-plane position="0 0 -4" rotation="-90 0 0" width="10" height="10" color="#2c3e50" opacity="0.3"></a-plane>
-      <a-sky color="#1a1a2e"></a-sky>
+      <a-plane position="0 0 -4" rotation="-90 0 0" width="100" height="100" color="#2c3e50" opacity="0.3"></a-plane>
+      <a-sky color=""></a-sky>
 
       <!-- Lighting -->
       <a-light type="ambient" color="#ffffff" intensity="0.4"></a-light>
