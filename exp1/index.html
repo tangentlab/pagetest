@@ -30,6 +30,7 @@
             gl_FragColor = vColor;
           }
         `;
+
         function loadShader(gl, type, source) {
           const shader = gl.createShader(type);
           gl.shaderSource(shader, source);
@@ -41,6 +42,7 @@
           }
           return shader;
         }
+
         function initShaderProgram(gl, vsSource, fsSource) {
           const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vsSource);
           const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fsSource);
@@ -54,6 +56,7 @@
           }
           return shaderProgram;
         }
+
         function initBuffers(gl) {
           // Cube vertices
           const positions = [
