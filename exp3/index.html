@@ -16,10 +16,25 @@
             width: 100vw;
             height: 100vh;
         }
+        .center-word {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            font-family: "Helvetica Neue", Arial, sans-serif;
+            font-size: 92px;
+            letter-spacing: 2px;
+            color: rgba(255, 255, 255, 0.9);
+            pointer-events: none;
+            z-index: 2;
+            text-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+            user-select: none;
+        }
     </style>
 </head>
 <body>
 <canvas id="glcanvas"></canvas>
+<div class="center-word">Guidewire</div>
 <script>
     const NUM_PARTICLES = 4000;
     const PARTICLE_SIZE = 4;
@@ -30,9 +45,14 @@
     const SWIRL_STRENGTH = 0.9;
     const VELOCITY_EASE = 0.12;
     const DRAG_STRENGTH = 0.9;
+    const CENTER_REPULSE_RADIUS = 140;
+    const CENTER_REPULSE_STRENGTH = 1.4;
+    const CENTER_SWIRL_STRENGTH = 0.6;
+    const TEXT_COLLISION_PADDING = 14;
 
     const canvas = document.getElementById('glcanvas');
     const gl = canvas.getContext('webgl');
+    const centerWordEl = document.querySelector('.center-word');
     let width = window.innerWidth;
     let height = window.innerHeight;
     canvas.width = width;
@@ -44,6 +64,17 @@
         canvas.width = width;
         canvas.height = height;
         gl.viewport(0, 0, width, height);
+        center.x = width / 2;
+        center.y = height / 2;
+        if (centerWordEl) {
+            const rect = centerWordEl.getBoundingClientRect();
+            textBounds = {
+                left: rect.left,
+                right: rect.right,
+                top: height - rect.bottom,
+                bottom: height - rect.top,
+            };
+        }
     }
     window.addEventListener('resize', resize);
 
@@ -51,6 +82,8 @@
     let prevMouse = { x: width/2, y: height/2 };
     let mouseVelocity = { x: 0, y: 0 };
     let isDragging = false;
+    let center = { x: width / 2, y: height / 2 };
+    let textBounds = null;
     canvas.addEventListener('mousemove', e => {
         mouse.x = e.clientX;
         mouse.y = height - e.clientY;
@@ -169,6 +202,50 @@
                 const swirlForce = SWIRL_STRENGTH * swirlFalloff * (mouseSpeed / 12);
                 desiredVx += tangentX * swirlForce;
                 desiredVy += tangentY * swirlForce;
+            }
+
+            // Flow around center text
+            const cdx = px - center.x;
+            const cdy = py - center.y;
+            const centerDist = Math.sqrt(cdx * cdx + cdy * cdy);
+            if (centerDist < CENTER_REPULSE_RADIUS && centerDist > 0.001) {
+                const centerFalloff = 1 - centerDist / CENTER_REPULSE_RADIUS;
+                const push = CENTER_REPULSE_STRENGTH * centerFalloff;
+                desiredVx += (cdx / centerDist) * push;
+                desiredVy += (cdy / centerDist) * push;
+
+                const centerTangentX = -cdy / centerDist;
+                const centerTangentY = cdx / centerDist;
+                const centerSwirl = CENTER_SWIRL_STRENGTH * centerFalloff;
+                desiredVx += centerTangentX * centerSwirl;
+                desiredVy += centerTangentY * centerSwirl;
+            }
+
+            // Collide with the center text bounds
+            if (textBounds) {
+                const left = textBounds.left - TEXT_COLLISION_PADDING;
+                const right = textBounds.right + TEXT_COLLISION_PADDING;
+                const top = textBounds.top - TEXT_COLLISION_PADDING;
+                const bottom = textBounds.bottom + TEXT_COLLISION_PADDING;
+
+                if (px > left && px < right && py > top && py < bottom) {
+                    const distLeft = px - left;
+                    const distRight = right - px;
+                    const distBottom = py - top;
+                    const distTop = bottom - py;
+                    const minDist = Math.min(distLeft, distRight, distBottom, distTop);
+                    const pushStrength = (1 - Math.min(1, minDist / (TEXT_COLLISION_PADDING + 6))) * 2.2;
+
+                    if (minDist === distLeft) {
+                        desiredVx += pushStrength;
+                    } else if (minDist === distRight) {
+                        desiredVx -= pushStrength;
+                    } else if (minDist === distBottom) {
+                        desiredVy += pushStrength;
+                    } else {
+                        desiredVy -= pushStrength;
+                    }
+                }
             }
 
             // Swarming: separation and repulsion at random distances
