@@ -13,6 +13,38 @@ const objectTypes = [
 // Colors to cycle through
 const colors = ['#4CC3D9', '#EF2D5E', '#FFC65D', '#7BC8A4', '#9B59B6', '#E74C3C', '#3498DB', '#F39C12'];
 
+// Simple click sound (Web Audio, no asset)
+let audioCtx = null;
+function playClickBeep() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) {
+    return;
+  }
+
+  if (!audioCtx) {
+    audioCtx = new AudioContextClass();
+  }
+
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+
+  osc.type = 'sine';
+  osc.frequency.value = 520;
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.2, now + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(now);
+  osc.stop(now + 0.22);
+}
+
 // Network tracking
 const network = {
   nodes: new Map(), // id -> {element, position, connections: Set}
@@ -115,6 +147,17 @@ function transformObject(element) {
 document.querySelector('a-scene').addEventListener('loaded', function() {
   const sceneEl = document.querySelector('a-scene');
   const cameraEl = document.querySelector('#main-camera') || document.querySelector('a-camera');
+  const headEl = document.querySelector('#head-model');
+
+  if (headEl) {
+    headEl.setAttribute('animation__spin', {
+      property: 'rotation',
+      to: '0 360 0',
+      loop: true,
+      dur: 6000,
+      easing: 'linear'
+    });
+  }
 
   // Get Three.js - A-Frame bundles THREE.js
   // THREE should be available globally or through AFRAME
@@ -175,6 +218,11 @@ document.querySelector('a-scene').addEventListener('loaded', function() {
       });
 
       if (aframeEntity) {
+        if (aframeEntity.getAttribute('id') === 'head-model') {
+          playClickBeep();
+          return;
+        }
+
         transformObject(aframeEntity);
       }
     }

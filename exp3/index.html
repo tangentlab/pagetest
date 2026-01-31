@@ -10,178 +10,338 @@
             overflow: hidden;
             width: 100%;
             height: 100%;
+            cursor: none;
         }
         canvas {
             display: block;
             width: 100vw;
             height: 100vh;
         }
+        .center-word {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            font-family: "Helvetica Neue", Arial, sans-serif;
+            font-size: 200px;
+            letter-spacing: 2px;
+            color: rgba(0, 0, 0, 0.474);
+            pointer-events: none;
+            z-index: 2;
+            text-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+            user-select: none;
+        }
     </style>
 </head>
 <body>
 <canvas id="glcanvas"></canvas>
+<div class="center-word">Guidewire</div>
 <script>
-const NUM_PARTICLES = 300;
-const PARTICLE_SIZE = 4;
-const SPEED = 0.3;
-const FOLLOW_STRENGTH = 0.08;
+    const NUM_PARTICLES = 4000;
+    const PARTICLE_SIZE = 4;
+    const SPEED = 0.8;
+    const FOLLOW_STRENGTH = 0.22;
+    const COLOR_INFLUENCE_RADIUS = 220;
+    const SWIRL_RADIUS = 180;
+    const SWIRL_STRENGTH = 0.9;
+    const VELOCITY_EASE = 0.12;
+    const DRAG_STRENGTH = 0.9;
+    const CENTER_REPULSE_RADIUS = 140;
+    const CENTER_REPULSE_STRENGTH = 1.4;
+    const CENTER_SWIRL_STRENGTH = 0.6;
+    const TEXT_COLLISION_PADDING = 14;
 
-const canvas = document.getElementById('glcanvas');
-const gl = canvas.getContext('webgl');
-let width = window.innerWidth;
-let height = window.innerHeight;
-canvas.width = width;
-canvas.height = height;
-
-function resize() {
-    width = window.innerWidth;
-    height = window.innerHeight;
+    const canvas = document.getElementById('glcanvas');
+    const gl = canvas.getContext('webgl');
+    const centerWordEl = document.querySelector('.center-word');
+    let width = window.innerWidth;
+    let height = window.innerHeight;
     canvas.width = width;
     canvas.height = height;
-    gl.viewport(0, 0, width, height);
-}
-window.addEventListener('resize', resize);
 
-let mouse = { x: width/2, y: height/2 };
-canvas.addEventListener('mousemove', e => {
-    mouse.x = e.clientX;
-    mouse.y = height - e.clientY;
-});
-
-// Vertex shader
-const vsSource = `
-attribute vec2 aPosition;
-uniform float uPointSize;
-void main() {
-    gl_PointSize = uPointSize;
-    gl_Position = vec4(
-        (aPosition.x / ${width}.0) * 2.0 - 1.0,
-        (aPosition.y / ${height}.0) * 2.0 - 1.0,
-        0, 1
-    );
-}
-`;
-
-// Fragment shader
-const fsSource = `
-precision mediump float;
-void main() {
-    float dist = length(gl_PointCoord - vec2(0.5));
-    if (dist > 0.5) discard;
-    gl_FragColor = vec4(1.0, 0.8, 0.2, 1.0);
-}
-`;
-
-function createShader(type, source) {
-    const shader = gl.createShader(type);
-    gl.shaderSource(shader, source);
-    gl.compileShader(shader);
-    return shader;
-}
-
-const vertexShader = createShader(gl.VERTEX_SHADER, vsSource);
-const fragmentShader = createShader(gl.FRAGMENT_SHADER, fsSource);
-
-const program = gl.createProgram();
-gl.attachShader(program, vertexShader);
-gl.attachShader(program, fragmentShader);
-gl.linkProgram(program);
-gl.useProgram(program);
-
-const aPosition = gl.getAttribLocation(program, 'aPosition');
-const uPointSize = gl.getUniformLocation(program, 'uPointSize');
-
-const particlePositions = new Float32Array(NUM_PARTICLES * 2);
-const particleVelocities = new Float32Array(NUM_PARTICLES * 2);
-
-for (let i = 0; i < NUM_PARTICLES; i++) {
-    particlePositions[i*2] = Math.random() * width;
-    particlePositions[i*2+1] = Math.random() * height;
-    particleVelocities[i*2] = (Math.random()-0.5) * 2;
-    particleVelocities[i*2+1] = (Math.random()-0.5) * 2;
-}
-
-const positionBuffer = gl.createBuffer();
-
-function updateParticles() {
-    for (let i = 0; i < NUM_PARTICLES; i++) {
-        let px = particlePositions[i*2];
-        let py = particlePositions[i*2+1];
-        let vx = particleVelocities[i*2];
-        let vy = particleVelocities[i*2+1];
-
-        // Attraction to mouse
-        let dx = mouse.x - px;
-        let dy = mouse.y - py;
-        vx += dx * FOLLOW_STRENGTH * Math.random();
-        vy += dy * FOLLOW_STRENGTH * Math.random();
-
-        // Swarming: separation and repulsion at specific distance
-        for (let j = 0; j < NUM_PARTICLES; j++) {
-            if (i === j) continue;
-            let ox = particlePositions[j*2];
-            let oy = particlePositions[j*2+1];
-            let ddx = px - ox;
-            let ddy = py - oy;
-            let dist = Math.sqrt(ddx*ddx + ddy*ddy);
-            // Repulsion if within repulsion distance
-            if (dist < 40 && dist > 0) {
-                let repulseStrength = 0.8 * (1.0 - dist/40.0); // Stronger when closer
-                vx += ddx / dist * repulseStrength;
-                vy += ddy / dist * repulseStrength;
-            }
+    function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+        gl.viewport(0, 0, width, height);
+        center.x = width / 2;
+        center.y = height / 2;
+        if (centerWordEl) {
+            const rect = centerWordEl.getBoundingClientRect();
+            textBounds = {
+                left: rect.left,
+                right: rect.right,
+                top: height - rect.bottom,
+                bottom: height - rect.top,
+            };
         }
-
-        // Damping
-        vx *= 0.95;
-        vy *= 0.95;
-
-        // Limit speed
-        let speed = Math.sqrt(vx*vx + vy*vy);
-        if (speed > 2) {
-            vx *= 2/speed;
-            vy *= 2/speed;
-        }
-
-        px += vx * SPEED;
-        py += vy * SPEED;
-
-        // Wrap around screen
-        if (px < 0) px += width;
-        if (px > width) px -= width;
-        if (py < 0) py += height;
-        if (py > height) py -= height;
-
-        particlePositions[i*2] = px;
-        particlePositions[i*2+1] = py;
-        particleVelocities[i*2] = vx;
-        particleVelocities[i*2+1] = vy;
     }
-}
+    window.addEventListener('resize', resize);
 
-function drawParticles() {
-    gl.clearColor(0.08, 0.09, 0.12, 1.0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
+    let mouse = { x: width/2, y: height/2 };
+    let prevMouse = { x: width/2, y: height/2 };
+    let mouseVelocity = { x: 0, y: 0 };
+    let isDragging = false;
+    let center = { x: width / 2, y: height / 2 };
+    let textBounds = null;
+    canvas.addEventListener('mousemove', e => {
+        mouse.x = e.clientX;
+        mouse.y = height - e.clientY;
+        mouseVelocity.x = mouse.x - prevMouse.x;
+        mouseVelocity.y = mouse.y - prevMouse.y;
+        prevMouse.x = mouse.x;
+        prevMouse.y = mouse.y;
+    });
+    canvas.addEventListener('mousedown', () => {
+        isDragging = true;
+    });
+    window.addEventListener('mouseup', () => {
+        isDragging = false;
+    });
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, particlePositions, gl.DYNAMIC_DRAW);
+    // Vertex shader
+    const vsSource = `
+    attribute vec2 aPosition;
+    attribute vec3 aColor;
+    attribute float aPointSize;
+    varying vec3 vColor;
+    void main() {
+        gl_PointSize = aPointSize;
+        gl_Position = vec4(
+            (aPosition.x / ${width}.0) * 2.0 - 1.0,
+            (aPosition.y / ${height}.0) * 2.0 - 1.0,
+            0, 1
+        );
+        vColor = aColor;
+    }
+    `;
 
-    gl.enableVertexAttribArray(aPosition);
-    gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 0, 0);
+    // Fragment shader
+    const fsSource = `
+    precision mediump float;
+    varying vec3 vColor;
+    void main() {
+        float dist = length(gl_PointCoord - vec2(0.5));
+        if (dist > 0.5) discard;
+        gl_FragColor = vec4(vColor, 1.0);
+    }
+    `;
 
-    gl.uniform1f(uPointSize, PARTICLE_SIZE);
+    function createShader(type, source) {
+        const shader = gl.createShader(type);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+        return shader;
+    }
 
-    gl.drawArrays(gl.POINTS, 0, NUM_PARTICLES);
-}
+    const vertexShader = createShader(gl.VERTEX_SHADER, vsSource);
+    const fragmentShader = createShader(gl.FRAGMENT_SHADER, fsSource);
 
-function animate() {
-    updateParticles();
-    drawParticles();
-    requestAnimationFrame(animate);
-}
+    const program = gl.createProgram();
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
+    gl.useProgram(program);
 
-resize();
-animate();
+    const aPosition = gl.getAttribLocation(program, 'aPosition');
+    const aPointSize = gl.getAttribLocation(program, 'aPointSize');
+    const aColor = gl.getAttribLocation(program, 'aColor');
+
+    const particlePositions = new Float32Array(NUM_PARTICLES * 2);
+    const particleVelocities = new Float32Array(NUM_PARTICLES * 2);
+    const particleColors = new Float32Array(NUM_PARTICLES * 3);
+    const particleRepulsion = new Float32Array(NUM_PARTICLES);
+    const particleSizes = new Float32Array(NUM_PARTICLES);
+
+    for (let i = 0; i < NUM_PARTICLES; i++) {
+        particlePositions[i*2] = Math.random() * width;
+        particlePositions[i*2+1] = Math.random() * height;
+        particleVelocities[i*2] = (Math.random()-0.5) * 2;
+        particleVelocities[i*2+1] = (Math.random()-0.5) * 2;
+        particleRepulsion[i] = 30 + Math.random() * 90;
+        particleSizes[i] = PARTICLE_SIZE;
+    }
+
+    const positionBuffer = gl.createBuffer();
+    const colorBuffer = gl.createBuffer();
+    const sizeBuffer = gl.createBuffer();
+
+    function mixColor(a, b, t) {
+        return [
+            a[0] + (b[0] - a[0]) * t,
+            a[1] + (b[1] - a[1]) * t,
+            a[2] + (b[2] - a[2]) * t,
+        ];
+    }
+
+    function updateParticles() {
+        for (let i = 0; i < NUM_PARTICLES; i++) {
+            let px = particlePositions[i*2];
+            let py = particlePositions[i*2+1];
+            let vx = particleVelocities[i*2];
+            let vy = particleVelocities[i*2+1];
+
+            // Attraction to mouse
+            let dx = mouse.x - px;
+            let dy = mouse.y - py;
+            let desiredVx = vx + dx * FOLLOW_STRENGTH * 0.002;
+            let desiredVy = vy + dy * FOLLOW_STRENGTH * 0.002;
+
+            if (isDragging) {
+                desiredVx += dx * DRAG_STRENGTH * 0.003;
+                desiredVy += dy * DRAG_STRENGTH * 0.003;
+            }
+
+            // Swirl based on mouse movement
+            const distToMouse = Math.sqrt(dx * dx + dy * dy);
+            if (distToMouse < SWIRL_RADIUS && distToMouse > 0.001) {
+                const swirlFalloff = 1 - distToMouse / SWIRL_RADIUS;
+                const tangentX = -dy / distToMouse;
+                const tangentY = dx / distToMouse;
+                const mouseSpeed = Math.min(12, Math.sqrt(mouseVelocity.x ** 2 + mouseVelocity.y ** 2));
+                const swirlForce = SWIRL_STRENGTH * swirlFalloff * (mouseSpeed / 12);
+                desiredVx += tangentX * swirlForce;
+                desiredVy += tangentY * swirlForce;
+            }
+
+            // Flow around center text
+            const cdx = px - center.x;
+            const cdy = py - center.y;
+            const centerDist = Math.sqrt(cdx * cdx + cdy * cdy);
+            if (centerDist < CENTER_REPULSE_RADIUS && centerDist > 0.001) {
+                const centerFalloff = 1 - centerDist / CENTER_REPULSE_RADIUS;
+                const push = CENTER_REPULSE_STRENGTH * centerFalloff;
+                desiredVx += (cdx / centerDist) * push;
+                desiredVy += (cdy / centerDist) * push;
+
+                const centerTangentX = -cdy / centerDist;
+                const centerTangentY = cdx / centerDist;
+                const centerSwirl = CENTER_SWIRL_STRENGTH * centerFalloff;
+                desiredVx += centerTangentX * centerSwirl;
+                desiredVy += centerTangentY * centerSwirl;
+            }
+
+            // Collide with the center text bounds
+            if (textBounds) {
+                const left = textBounds.left - TEXT_COLLISION_PADDING;
+                const right = textBounds.right + TEXT_COLLISION_PADDING;
+                const top = textBounds.top - TEXT_COLLISION_PADDING;
+                const bottom = textBounds.bottom + TEXT_COLLISION_PADDING;
+
+                if (px > left && px < right && py > top && py < bottom) {
+                    const distLeft = px - left;
+                    const distRight = right - px;
+                    const distBottom = py - top;
+                    const distTop = bottom - py;
+                    const minDist = Math.min(distLeft, distRight, distBottom, distTop);
+                    const pushStrength = (1 - Math.min(1, minDist / (TEXT_COLLISION_PADDING + 6))) * 2.2;
+
+                    if (minDist === distLeft) {
+                        desiredVx += pushStrength;
+                    } else if (minDist === distRight) {
+                        desiredVx -= pushStrength;
+                    } else if (minDist === distBottom) {
+                        desiredVy += pushStrength;
+                    } else {
+                        desiredVy -= pushStrength;
+                    }
+                }
+            }
+
+            // Swarming: separation and repulsion at random distances
+            for (let j = 0; j < NUM_PARTICLES; j++) {
+                if (i === j) continue;
+                let ox = particlePositions[j*2];
+                let oy = particlePositions[j*2+1];
+                let ddx = px - ox;
+                let ddy = py - oy;
+                let dist = Math.sqrt(ddx*ddx + ddy*ddy);
+                const repulsionDistance = particleRepulsion[i];
+                // Repulsion if within repulsion distance
+                if (dist < repulsionDistance && dist > 0) {
+                    let repulseStrength = 1.2 * (1.0 - dist / repulsionDistance); // Stronger when closer
+                    desiredVx += ddx / dist * repulseStrength;
+                    desiredVy += ddy / dist * repulseStrength;
+                }
+            }
+
+            // Eased velocity blend + damping for liquid flow
+            vx += (desiredVx - vx) * VELOCITY_EASE;
+            vy += (desiredVy - vy) * VELOCITY_EASE;
+            vx *= 0.92;
+            vy *= 0.92;
+
+            // Limit speed
+            let speed = Math.sqrt(vx*vx + vy*vy);
+            if (speed > 2) {
+                vx *= 2/speed;
+                vy *= 2/speed;
+            }
+
+            px += vx * SPEED;
+            py += vy * SPEED;
+
+            // Color variation based on movement + mouse proximity
+            const speedMix = Math.min(1, speed / 2);
+            const movingColor = mixColor([0.2, 0.7, 1.0], [1.0, 0.4, 0.2], speedMix);
+            const positionMix = (Math.sin((px / width) * Math.PI * 2) + Math.cos((py / height) * Math.PI * 2)) * 0.25 + 0.5;
+            const tintedColor = mixColor(movingColor, [0.9, 0.8, 1.0], positionMix);
+
+            const proximity = Math.max(0, 1 - distToMouse / COLOR_INFLUENCE_RADIUS);
+            const brightness = 0.4 + 0.6 * proximity;
+
+            particleColors[i*3] = Math.min(1, tintedColor[0] * brightness);
+            particleColors[i*3+1] = Math.min(1, tintedColor[1] * brightness);
+            particleColors[i*3+2] = Math.min(1, tintedColor[2] * brightness);
+            particleSizes[i] = PARTICLE_SIZE + proximity * (PARTICLE_SIZE * 1.2);
+
+            // Wrap around screen
+            if (px < 0) px += width;
+            if (px > width) px -= width;
+            if (py < 0) py += height;
+            if (py > height) py -= height;
+
+            particlePositions[i*2] = px;
+            particlePositions[i*2+1] = py;
+            particleVelocities[i*2] = vx;
+            particleVelocities[i*2+1] = vy;
+        }
+    }
+
+    function drawParticles() {
+        gl.clearColor(0.08, 0.09, 0.12, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, particlePositions, gl.DYNAMIC_DRAW);
+
+        gl.enableVertexAttribArray(aPosition);
+        gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 0, 0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, particleColors, gl.DYNAMIC_DRAW);
+
+        gl.enableVertexAttribArray(aColor);
+        gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 0, 0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, sizeBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, particleSizes, gl.DYNAMIC_DRAW);
+
+        gl.enableVertexAttribArray(aPointSize);
+        gl.vertexAttribPointer(aPointSize, 1, gl.FLOAT, false, 0, 0);
+
+        gl.drawArrays(gl.POINTS, 0, NUM_PARTICLES);
+    }
+
+    function animate() {
+        updateParticles();
+        drawParticles();
+        requestAnimationFrame(animate);
+    }
+
+    resize();
+    animate();
 </script>
 </body>
 </html>
