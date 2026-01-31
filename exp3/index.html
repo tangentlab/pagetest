@@ -101,87 +101,87 @@ for (let i = 0; i < NUM_PARTICLES; i++) {
     particleVelocities[i*2+1] = (Math.random()-0.5) * 2;
 }
 
-const positionBuffer = gl.createBuffer();
+    const positionBuffer = gl.createBuffer();
 
-function updateParticles() {
-    for (let i = 0; i < NUM_PARTICLES; i++) {
-        let px = particlePositions[i*2];
-        let py = particlePositions[i*2+1];
-        let vx = particleVelocities[i*2];
-        let vy = particleVelocities[i*2+1];
+    function updateParticles() {
+        for (let i = 0; i < NUM_PARTICLES; i++) {
+            let px = particlePositions[i*2];
+            let py = particlePositions[i*2+1];
+            let vx = particleVelocities[i*2];
+            let vy = particleVelocities[i*2+1];
 
-        // Attraction to mouse
-        let dx = mouse.x - px;
-        let dy = mouse.y - py;
-        vx += dx * FOLLOW_STRENGTH * Math.random();
-        vy += dy * FOLLOW_STRENGTH * Math.random();
+            // Attraction to mouse
+            let dx = mouse.x - px;
+            let dy = mouse.y - py;
+            vx += dx * FOLLOW_STRENGTH * Math.random();
+            vy += dy * FOLLOW_STRENGTH * Math.random();
 
-        // Swarming: separation and repulsion at specific distance
-        for (let j = 0; j < NUM_PARTICLES; j++) {
-            if (i === j) continue;
-            let ox = particlePositions[j*2];
-            let oy = particlePositions[j*2+1];
-            let ddx = px - ox;
-            let ddy = py - oy;
-            let dist = Math.sqrt(ddx*ddx + ddy*ddy);
-            // Repulsion if within repulsion distance
-            if (dist < 40 && dist > 0) {
-                let repulseStrength = 0.8 * (1.0 - dist/40.0); // Stronger when closer
-                vx += ddx / dist * repulseStrength;
-                vy += ddy / dist * repulseStrength;
+            // Swarming: separation and repulsion at specific distance
+            for (let j = 0; j < NUM_PARTICLES; j++) {
+                if (i === j) continue;
+                let ox = particlePositions[j*2];
+                let oy = particlePositions[j*2+1];
+                let ddx = px - ox;
+                let ddy = py - oy;
+                let dist = Math.sqrt(ddx*ddx + ddy*ddy);
+                // Repulsion if within repulsion distance
+                if (dist < 40 && dist > 0) {
+                    let repulseStrength = 0.8 * (1.0 - dist/40.0); // Stronger when closer
+                    vx += ddx / dist * repulseStrength;
+                    vy += ddy / dist * repulseStrength;
+                }
             }
+
+            // Damping
+            vx *= 0.95;
+            vy *= 0.95;
+
+            // Limit speed
+            let speed = Math.sqrt(vx*vx + vy*vy);
+            if (speed > 2) {
+                vx *= 2/speed;
+                vy *= 2/speed;
+            }
+
+            px += vx * SPEED;
+            py += vy * SPEED;
+
+            // Wrap around screen
+            if (px < 0) px += width;
+            if (px > width) px -= width;
+            if (py < 0) py += height;
+            if (py > height) py -= height;
+
+            particlePositions[i*2] = px;
+            particlePositions[i*2+1] = py;
+            particleVelocities[i*2] = vx;
+            particleVelocities[i*2+1] = vy;
         }
-
-        // Damping
-        vx *= 0.95;
-        vy *= 0.95;
-
-        // Limit speed
-        let speed = Math.sqrt(vx*vx + vy*vy);
-        if (speed > 2) {
-            vx *= 2/speed;
-            vy *= 2/speed;
-        }
-
-        px += vx * SPEED;
-        py += vy * SPEED;
-
-        // Wrap around screen
-        if (px < 0) px += width;
-        if (px > width) px -= width;
-        if (py < 0) py += height;
-        if (py > height) py -= height;
-
-        particlePositions[i*2] = px;
-        particlePositions[i*2+1] = py;
-        particleVelocities[i*2] = vx;
-        particleVelocities[i*2+1] = vy;
     }
-}
 
-function drawParticles() {
-    gl.clearColor(0.08, 0.09, 0.12, 1.0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
+    function drawParticles() {
+        gl.clearColor(0.08, 0.09, 0.12, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, particlePositions, gl.DYNAMIC_DRAW);
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, particlePositions, gl.DYNAMIC_DRAW);
 
-    gl.enableVertexAttribArray(aPosition);
-    gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(aPosition);
+        gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 0, 0);
 
-    gl.uniform1f(uPointSize, PARTICLE_SIZE);
+        gl.uniform1f(uPointSize, PARTICLE_SIZE);
 
-    gl.drawArrays(gl.POINTS, 0, NUM_PARTICLES);
-}
+        gl.drawArrays(gl.POINTS, 0, NUM_PARTICLES);
+    }
 
-function animate() {
-    updateParticles();
-    drawParticles();
-    requestAnimationFrame(animate);
-}
+    function animate() {
+        updateParticles();
+        drawParticles();
+        requestAnimationFrame(animate);
+    }
 
-resize();
-animate();
+    resize();
+    animate();
 </script>
 </body>
 </html>
