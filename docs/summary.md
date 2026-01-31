@@ -11,6 +11,22 @@ Your website currently consists of:
 - **Audio Review Tool** - Web Audio API implementation
 - **Minimal Documentation** - Basic README
 
+### Recent Updates (Jan 2026)
+
+- **Personal A-Frame Scene (`me/index.html`)**
+  - Added 3D text for “Ryan Hill”
+  - Head model spins continuously
+  - Click on head plays a Web Audio tone
+- **Experiment 1 (`exp1/index.html`, `exp1/exp1.js`)**
+  - Cube now uses dynamic textures
+  - Procedural image crossfade with checkerboard mix
+- **Experiment 3 (`exp3/index.html`)**
+  - Liquid-like swarm motion with eased velocities
+  - Mouse-driven swirl, drag interaction, and random spacing
+  - Color shifts/brightness near mouse
+  - Point size scales with proximity
+  - Center “Guidewire” label with collision/flow around text
+
 ### Technical Implementations
 
 #### Experiment 1: WebGL Cube (`exp1_cube.html`)
